@@ -38,7 +38,7 @@ function comment_upload_update_7001() {
 }
 
 /**
- * Check uri for existence.
+ * Check if it's necessary to upgrade.
  *
  * @param $uri
  * @return mixed
