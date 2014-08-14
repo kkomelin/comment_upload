@@ -14,7 +14,7 @@ The module also provides Comment Upload formatter that emulates D6 attachment re
 
 ### UPGRADE FROM D6
 
-- After core upgrade enable remove old comment_upload module and download this one https://github.com/konstantin-komelin/comment_upload.git
+- After core upgrade remove old comment_upload module and download this one https://github.com/konstantin-komelin/comment_upload.git
 - Enable new Comment Upload module.
 - Run update.php and update database (this step may take significant time, make sure your PHP max_execution_time value is high enough).
 - Choose a common image style for all Comment Upload images admin/config/media/comment_upload
