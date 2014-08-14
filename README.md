@@ -25,3 +25,10 @@ The module also provides Comment Upload formatter that emulates D6 attachment re
 - Create a File field that belongs to an entity.
 - Choose Comment Upload formatter in the field display settings.
 - Enjoy your Comment-Upload-like attachments (images as thumbnails, files as a table).
+
+### CREDITS
+
+- Developer: [Konstantin Komelin] (https://github.com/konstantin-komelin)
+- Sponsored by [RadioMed.ru] (http://radiomed.ru/)
+
+
