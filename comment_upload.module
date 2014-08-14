@@ -4,18 +4,22 @@
  * The main module hooks.
  */
 
+define("COMMENT_UPLOAD_DEFAULT_IMAGE_STYLE", "-1");
+
 /**
  * Implements hook_menu().
  */
 function comment_upload_menu() {
 
-  $items['admin/config/content/comment_upload'] = array(
-    'title' => 'Comment Upload Settings',
+  $items['admin/config/media/comment_upload'] = array(
+    'title' => 'Comment Upload Formatter',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('comment_upload_settings_form'),
     'access arguments' => array('administer site configuration'),
     'type' => MENU_NORMAL_ITEM,
   );
+
+  return $items;
 }
 
 /**
@@ -27,17 +31,17 @@ function comment_upload_settings_form() {
 
   $image_styles = image_styles();
 
-  $options = array('-1' => '<' . t('Original') . '>');
+  $options = array(COMMENT_UPLOAD_DEFAULT_IMAGE_STYLE => '<' . t('Original') . '>');
   foreach($image_styles as $style_id => $style) {
     $options[$style_id] = $style['name'];
   }
 
   $form['comment_upload_image_style'] = array(
-    '#type' => 'radios',
+    '#type' => 'select',
     '#title' => t('Image style'),
     '#options' => $options,
-    '#default_value' => variable_get('comment_upload_image_style', '-1'),
-    '#description' => t('Please choose image style that will be used to display images through Comment Upload formatter.')
+    '#default_value' => variable_get('comment_upload_image_style', COMMENT_UPLOAD_DEFAULT_IMAGE_STYLE),
+    '#description' => t('Please choose an image style that will be used to display images through Comment Upload formatter.')
   );
 
   return system_settings_form($form);
@@ -117,7 +121,18 @@ function theme_file_formatter_comment_upload($variables) {
 
       $item['alt'] = $item['title'] = $item['filename'];
 
-      $output .= theme('image_formatter', array('item' => $item, 'image_style' => 'AttachmentThumbnail', 'path' => array('path' => $real_uri)));
+      $image_formatter_options = array(
+        'item' => $item,
+        'path' => array('path' => $real_uri)
+      );
+
+      // Use image style if chosen in the module settings.
+      $image_style = variable_get('comment_upload_image_style', COMMENT_UPLOAD_DEFAULT_IMAGE_STYLE);
+      if ($image_style != COMMENT_UPLOAD_DEFAULT_IMAGE_STYLE) {
+        $image_formatter_options['image_style'] = $image_style;
+      }
+
+      $output .= theme('image_formatter', $image_formatter_options);
     }
     else {
       $rows[] = array(
