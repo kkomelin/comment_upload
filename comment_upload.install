@@ -1,88 +1,19 @@
 <?php
 /**
- * @file comment_upload_migrate.install
+ * @file
  *
- * This D7 version of comment_upload exists only for the two update functions,
- * which attempt to take comment_upload fields from D6 and change them into
- * D7 image fields.
+ * Upgrade path from D6 to D7 and other update functions.
  */
 
 /**
  * Implementation of hook_uninstall().
  */
 function comment_upload_uninstall() {
-  drupal_uninstall_schema('comment_upload');
+
+  if (db_table_exists('comment_upload')) {
+    db_drop_table('comment_upload');
+  }
   db_query("DELETE FROM {variable} WHERE name LIKE 'comment_upload_%'");
-}
-
-/**
- * Implementation of hook_schema().
- *
- * Used here only so we can uninstall it.
- */
-function comment_upload_schema() {
-  $schema['comment_upload'] = array(
-    'description' => t('Stores uploaded file information and table associations.'),
-    'fields' => array(
-      'fid' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => t('Primary Key: The {files}.fid.'),
-      ),
-      'nid' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => t('The {node}.nid of the comment the uploaded files is associated with.'),
-      ),
-      'cid' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => t('The {comment}.cid associated with the uploaded file.'),
-      ),
-      'description' => array(
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'default' => '',
-        'description' => t('Description of the uploaded file.'),
-      ),
-      'list' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'size' => 'tiny',
-        'description' => t('Whether the file should be visibly listed on the comment: yes(1) or no(0).'),
-      ),
-      'weight' => array(
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 0,
-        'size' => 'tiny',
-        'description' => t('Weight of this upload in relation to other uploads - determines the order.'),
-      ),
-      'legacy_fid' => array(
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => t('The file ID from the Drupal 5 version, if applicable.'),
-      ),
-    ),
-    'primary key' => array('fid'),
-    'indexes' => array(
-      'cid_fid' => array('cid', 'fid'),
-      'nid' => array('nid'),
-    ),
-  );
-
-  return $schema;
 }
 
 
@@ -216,7 +147,7 @@ function comment_upload_update_7002(&$sandbox) {
 }
 
 /**
- * D6 to D7: Notify user to uninstall comment upload.
+ * D6 to D7: Remove {comment_upload} table.
  */
 function comment_upload_update_7003() {
   // We don't need to run this update if the module has been newly installed on D7 site.
@@ -224,7 +155,9 @@ function comment_upload_update_7003() {
     return t('No need to update.');
   }
 
-  return t('You have now migrated your comment_upload fields and should uninstall comment_upload.');
+  db_drop_table('comment_upload');
+
+  return t('You have now migrated your comment_upload fields and removed {comment_upload} table.');
 }
 /**
  * Create an instance (and if necessary a field) for given entity/bundle/field
