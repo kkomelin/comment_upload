@@ -1,0 +1,4 @@
+name = Comment Upload
+description = Provides upgrade path from D6 comment_upload to D7 file fields and Comment Upload formatter that allows to show.
+core = 7.x
+config = admin/config/content/comment_upload

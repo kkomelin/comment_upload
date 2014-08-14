@@ -1,0 +1,314 @@
+<?php
+/**
+ * @file comment_upload_migrate.install
+ *
+ * This D7 version of comment_upload exists only for the two update functions,
+ * which attempt to take comment_upload fields from D6 and change them into
+ * D7 image fields.
+ */
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function comment_upload_uninstall() {
+  drupal_uninstall_schema('comment_upload');
+  db_query("DELETE FROM {variable} WHERE name LIKE 'comment_upload_%'");
+}
+
+/**
+ * Implementation of hook_schema().
+ *
+ * Used here only so we can uninstall it.
+ */
+function comment_upload_schema() {
+  $schema['comment_upload'] = array(
+    'description' => t('Stores uploaded file information and table associations.'),
+    'fields' => array(
+      'fid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('Primary Key: The {files}.fid.'),
+      ),
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('The {node}.nid of the comment the uploaded files is associated with.'),
+      ),
+      'cid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('The {comment}.cid associated with the uploaded file.'),
+      ),
+      'description' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => t('Description of the uploaded file.'),
+      ),
+      'list' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => t('Whether the file should be visibly listed on the comment: yes(1) or no(0).'),
+      ),
+      'weight' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => t('Weight of this upload in relation to other uploads - determines the order.'),
+      ),
+      'legacy_fid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => t('The file ID from the Drupal 5 version, if applicable.'),
+      ),
+    ),
+    'primary key' => array('fid'),
+    'indexes' => array(
+      'cid_fid' => array('cid', 'fid'),
+      'nid' => array('nid'),
+    ),
+  );
+
+  return $schema;
+}
+
+
+/**
+ * D6 to D7: Create fields on necessary comment bundles.
+ */
+function comment_upload_update_7001() {
+
+  // We don't need to run this update if the module has been newly installed on D7 site.
+  if (!_comment_upload_needs_upgrade()) {
+    return t('No need to update.');
+  }
+
+  // Find out what node types have comments with comment_upload content.
+  $types = array();
+  $result = db_query('SELECT DISTINCT type FROM {node} n, {comment_upload} cu WHERE n.nid = cu.nid');
+  while($type = $result->fetchField()) {
+    comment_upload_create_instance('field_comment_upload', 'comment', 'comment_node_' . $type, t('Comment Upload'));
+    $types[] = $type;
+  }
+  return t('Created field_comment_upload fields on types @types', array('@types' => implode(', ', $types)));
+}
+
+/**
+ * Check uri for existence.
+ *
+ * @param $uri
+ * @return mixed
+ */
+function _comment_upload_needs_upgrade() {
+  return db_table_exists('comment_upload');
+}
+
+/**
+ * Check uri for existence.
+ *
+ * @param $uri
+ * @return mixed
+ */
+function _comment_upload_is_duplicate($uri) {
+  return db_select('file_managed', 'f')
+    ->fields('f', array('fid'))
+    ->condition('uri', $uri)
+    ->execute()
+    ->fetchField();
+}
+
+/**
+ * D6 to D7: Migrate data from comment_upload table into a field_comment_upload field.
+ */
+function comment_upload_update_7002(&$sandbox) {
+
+  // We don't need to run this update if the module has been newly installed on D7 site.
+  if (!_comment_upload_needs_upgrade()) {
+    return t('No need to update.');
+  }
+
+  $num_per_pass = 50;
+
+  $sandbox['#finished'] = 0;
+  $basename = variable_get('file_' . file_default_scheme() . '_path', conf_path() . '/files');
+  $scheme = file_default_scheme() . '://';
+
+  if (!isset($sandbox['upload_from'])) {
+    $sandbox['upload_from'] = 0;
+    $sandbox['upload_count'] = db_query("SELECT COUNT(*) FROM {node} n, {comment} c, {comment_upload} cu, `files` f WHERE n.nid = c.nid AND c.cid = cu.cid AND cu.fid = f.fid")->fetchField();
+  }
+
+  $result = db_query_range("SELECT cu.*, f.* FROM {node} n, {comment} c, {comment_upload} cu, {files} f WHERE n.nid = c.nid AND c.cid = cu.cid AND cu.fid = f.fid ORDER BY cu.cid, f.fid", $sandbox['upload_from'], $num_per_pass);
+
+  foreach($result as $old_file) {
+    $sandbox['upload_from']++;
+
+    // First, create the new managed file object.
+    $file = new stdClass();
+    $file->fid = NULL;
+    $file->filename = $old_file->description;
+    $file->uri = file_build_uri(str_replace($basename, '', $old_file->filepath));
+
+    // We need to check files for existence to avoid problems with unique index on {file_managed}.uri.
+    // Failed: PDOException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'public://1.u.slayd159_0.jpg'
+    // for key 'uri': INSERT INTO {file_managed} (uid, filename, uri, filesize, status, timestamp)
+    // VALUES (:db_insert_placeholder_0, :db_insert_placeholder_1, :db_insert_placeholder_2, :db_insert_placeholder_3, :db_insert_placeholder_4, :db_insert_placeholder_5);
+    // Array ( [:db_insert_placeholder_0] => 12 [:db_insert_placeholder_1] => 1.u.slayd159.jpg [:db_insert_placeholder_2] => public://1.u.slayd159_0.jpg [:db_insert_placeholder_3] => 0
+    // [:db_insert_placeholder_4] => 1 [:db_insert_placeholder_5] => 1407149309 ) in drupal_write_record() (line 7202 of common.inc).
+    $duplicate = _comment_upload_is_duplicate($file->uri);
+    if ($duplicate) {
+
+      $parts = pathinfo($old_file->filepath);
+
+      $dir = ($parts['dirname'] == '.') ? '' : $parts['dirname'] . "/";
+
+      $counter = 0;
+      do {
+        $new_uri = $dir . $parts['filename'] . '_' . $counter++ . "." . $parts['extension'];
+
+        $file->uri = file_build_uri(str_replace($basename, '', $new_uri));
+      } while(_comment_upload_is_duplicate($file->uri));
+
+      watchdog('comment_upload', 'Was: ' . $old_file->filepath . '; Now: ' . $file->uri);
+    }
+
+    $file->uid = $old_file->uid;
+    $file->filesize = $old_file->filesize;
+    $file->status = $old_file->status;
+    $new_file = file_save($file); // Saves a file object to the database.
+
+//    file_usage_add($file, 'comment', 'comment', $old_file->cid);
+
+    // Now, load the comment
+    $comment = comment_load($old_file->cid);
+    $delta = !empty($comment->field_comment_upload[LANGUAGE_NONE]) ? count($comment->field_comment_upload[LANGUAGE_NONE]) : 0;
+    $comment->field_comment_upload[LANGUAGE_NONE][$delta] = array(
+      'fid' => $new_file->fid,
+      'uid' => $new_file->uid,
+      'uri' => $new_file->uri,
+      'filename' => $new_file->filename,
+      'filemime' => $new_file->filemime,
+      'filesize' => $new_file->filesize,
+      'status' => $new_file->status,
+      'timestamp' => $new_file->timestamp,
+      'display' => '1',
+    );
+    comment_save($comment);
+  }
+
+  $sandbox['#finished'] = $sandbox['upload_from'] / $sandbox['upload_count'];
+  if ($sandbox['#finished'] >= 1) {
+    return t('Migrated %count comment_upload fields', array('%count' => $sandbox['upload_count']));
+  }
+}
+
+/**
+ * D6 to D7: Notify user to uninstall comment upload.
+ */
+function comment_upload_update_7003() {
+  // We don't need to run this update if the module has been newly installed on D7 site.
+  if (!_comment_upload_needs_upgrade()) {
+    return t('No need to update.');
+  }
+
+  return t('You have now migrated your comment_upload fields and should uninstall comment_upload.');
+}
+/**
+ * Create an instance (and if necessary a field) for given entity/bundle/field
+ * @param $field_name
+ *   string: name of the field, like 'field_comment_upload'
+ * @param $entity_type
+ *   string: entity type, like 'comment'.
+ * @param $bundle
+ *   string: bundle, like 'comment_node_book'
+ * @param $label
+ *   string: Label for the field, like "Comment Upload"
+ * @param $weight
+ *   integer: Weight of the field
+ *  comment_upload_create_instance('field_comment_upload', 'comment', 'comment_node_' . $type, t('Comment Upload'));
+ */
+function comment_upload_create_instance($field_name, $entity_type, $bundle, $label, $weight = 99) {
+
+  $field = field_info_field($field_name);
+  $instance = field_info_instance($entity_type, $field_name, $bundle);
+
+  if (empty($field)) {
+    $field = array(
+      'field_name' => $field_name,
+      'type' => 'file',
+      'module' => 'file', // default
+      'active' => TRUE, // default
+      'locked' => FALSE, // default
+      'deleted' => FALSE, // default
+      'cardinality' => FIELD_CARDINALITY_UNLIMITED, // default is 1
+      'translatable' => FALSE, // default
+      'entity_types' => array(), // default
+      'settings' => array(
+        'display_field' => FALSE, // default
+        'default_default' => FALSE, // default
+        'uri_scheme' => 'public',
+      ),
+    );
+    field_create_field($field);
+  }
+
+  if (empty($instance)) {
+    $instance = array(
+      'field_name' => $field_name,
+      'entity_type' => $entity_type,
+      'bundle' => $bundle,
+      'label' => 'Comment Upload',
+      'description' => st('Upload an image or file to go with this @type.', array('@type' => $entity_type)),
+      'required' => FALSE, // default
+      'settings' => array(
+        'user_register_form' => FALSE, // default
+        'file_directory' => 'field/' . $bundle,
+        'file_extensions' => 'txt pdf doc xls gif jpg jpeg mp3 png rar zip', // default 'txt'
+        'description_field' => FALSE, // default
+        'max_filesize' => '', // default ''
+      ),
+      'widget' => array(
+        'type' => 'file_generic',
+        'module' => 'file', // default
+        'settings' => array(
+          'progress_indicator' => 'bar', // default is 'throbber'
+        ),
+        'weight' => 0, // default is 0
+      ),
+      'display' => array(
+        'default' => array(
+          'label' => 'above', // default
+          'type' => 'file_comment_upload', // default 'file_default'
+          'settings' => array(), // default
+          'module' => 'comment_upload', // default
+          'weight' => 0,
+        ),
+      ),
+    );
+    field_create_instance($instance);
+  }
+}
+
+/**
+ * Find out what comment types need the field_comment_upload and create it.
+ */
+//function comment_upload_migrate_create_instances() {
+//  // Find out what node types have comments with comment_upload content.
+//  $result = db_query("SELECT DISTINCT type FROM {node} n, {comment} c, {comment_upload} cu WHERE n.nid = c.nid AND c.cid = cu.cid", array(':nid' => $object->nid));
+//  while($type = $result->fetchField()) {
+//    comment_upload_migrate_create_instance('field_comment_upload', 'comment', 'comment_node_' . $type, t('Comment Upload'));
+//  }
+//}

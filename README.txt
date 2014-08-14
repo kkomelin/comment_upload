@@ -1,0 +1,1 @@
+This is a upgrade path for Comment Upload module (from D6 to D7) and File field formatter that emulates Comment Upload representation of attached files.

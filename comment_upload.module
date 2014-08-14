@@ -1,0 +1,135 @@
+<?php
+/**
+ * @file
+ * The main module hooks.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function comment_upload_menu() {
+
+  $items['admin/config/content/comment_upload'] = array(
+    'title' => 'Comment Upload Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('comment_upload_settings_form'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+}
+
+/**
+ * Menu callback. The module setting form.
+ */
+function comment_upload_settings_form() {
+
+  // @todo: Replace this setting with field settings.
+
+  $image_styles = image_styles();
+
+  $options = array('-1' => '<' . t('Original') . '>');
+  foreach($image_styles as $style_id => $style) {
+    $options[$style_id] = $style['name'];
+  }
+
+  $form['comment_upload_image_style'] = array(
+    '#type' => 'radios',
+    '#title' => t('Image style'),
+    '#options' => $options,
+    '#default_value' => variable_get('comment_upload_image_style', '-1'),
+    '#description' => t('Please choose image style that will be used to display images through Comment Upload formatter.')
+  );
+
+  return system_settings_form($form);
+}
+
+
+/**
+ * Implements hook_theme().
+ */
+function comment_upload_theme() {
+  return array(
+    'file_formatter_comment_upload' => array(
+      'variables' => array('items' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function comment_upload_field_formatter_info() {
+  return array(
+    'file_comment_upload' => array(
+      'label' => t('Comment Upload'),
+      'field types' => array('file'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function comment_upload_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+
+  switch ($display['type']) {
+
+    case 'file_comment_upload':
+      if (!empty($items)) {
+        // Display all values in a single element..
+        $element[0] = array(
+          '#theme' => 'file_formatter_comment_upload',
+          '#items' => $items,
+        );
+      }
+      break;
+  }
+
+  return $element;
+}
+
+/**
+ * Returns HTML for a Comment Upload fields.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - items: An array of file attachments.
+ *
+ * @ingroup themeable
+ */
+function theme_file_formatter_comment_upload($variables) {
+
+  $header = array(t('Attachment'), t('Size'));
+  $rows = array();
+
+  $output = '<div class="comment-upload-images">';
+
+  foreach ($variables['items'] as $delta => $item) {
+
+    $mime = file_get_mimetype($item['uri']);
+
+    $image_mime_types = array('image/jpeg', 'image/gif', 'image/png');
+
+    if(in_array($item['filemime'], $image_mime_types) || in_array($mime, $image_mime_types)) {
+
+      $real_uri = file_create_url($item['uri']);
+
+      $item['alt'] = $item['title'] = $item['filename'];
+
+      $output .= theme('image_formatter', array('item' => $item, 'image_style' => 'AttachmentThumbnail', 'path' => array('path' => $real_uri)));
+    }
+    else {
+      $rows[] = array(
+        theme('file_link', array('file' => (object) $item)),
+        format_size($item['filesize']),
+      );
+    }
+  }
+
+  $output .= '</div>';
+
+  $output .=  empty($rows) ? '' : theme('table', array('header' => $header, 'rows' => $rows));
+
+  return $output;
+}
