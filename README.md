@@ -1,4 +1,4 @@
-# Comment Upload (D7)
+## Comment Upload (Drupal 7)
 
 This is a upgrade path for Comment Upload module (from D6 to D7) and File field formatter that emulates Comment Upload representation of attached files.
 
@@ -12,7 +12,7 @@ The upgrade path is originally based on the module https://www.drupal.org/node/5
 
 The module also provides Comment Upload formatter that emulates D6 attachment representation (images as thumbnails, files as table).
 
-## UPGRADE FROM D6
+### UPGRADE FROM D6
 
 1) After core upgrade enable remove old comment_upload module and download this one https://github.com/konstantin-komelin/comment_upload.git
 2) Enable new Comment Upload module.
@@ -20,7 +20,7 @@ The module also provides Comment Upload formatter that emulates D6 attachment re
 4) Choose a common image style for all Comment Upload images admin/config/media/comment_upload
 5) Test your Comment Upload fields
 
-## USE AS A FILE FIELD FORMATTER
+### USE AS A FILE FIELD FORMATTER
 
 1) Create a File field that belongs to an entity.
 2) Choose Comment Upload formatter in the field display settings.
