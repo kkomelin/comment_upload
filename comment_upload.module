@@ -41,7 +41,7 @@ function comment_upload_settings_form() {
     '#title' => t('Image style'),
     '#options' => $options,
     '#default_value' => variable_get('comment_upload_image_style', COMMENT_UPLOAD_DEFAULT_IMAGE_STYLE),
-    '#description' => t('Please choose an image style that will be used to display images through Comment Upload formatter.')
+    '#description' => t('Please choose !image-styles-link that will be used to display images through Comment Upload formatter.', array('!image-styles-link' => l(t('an image style'), 'admin/config/media/image-styles')))
   );
 
   return system_settings_form($form);
