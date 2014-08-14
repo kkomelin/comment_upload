@@ -24,6 +24,7 @@ The module also provides Comment Upload formatter that emulates D6 attachment re
 
 - Create a File field that belongs to an entity.
 - Choose Comment Upload formatter in the field display settings.
+- Choose a common image style for all Comment Upload images admin/config/media/comment_upload
 - Enjoy your Comment-Upload-like attachments (images as thumbnails, files as a table).
 
 ### CREDITS
