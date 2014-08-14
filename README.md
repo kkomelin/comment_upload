@@ -5,10 +5,10 @@ This is a upgrade path for Comment Upload module (from D6 to D7) and File field 
 The upgrade path is originally based on the module https://www.drupal.org/node/554986#comment-6582290 but contains several significant improvements:
 
 - Table name now uses brackets for example {node} to support table prefixes.
-- Prevented constrain violation on passing duplicate uri in {file_managed}.uri field.
-- All Comment Upload attachments are converted to File fields instead of images that allows us to display files as well as images.
-- Comment Upload formatter is set for all converted fields.
-- A bit improved code style.
+- Prevented constraint violation on passing duplicate uri in {file_managed}.uri field.
+- Converted all Comment Upload attachments to File fields instead of Image fields that allows us to also display other file types.
+- Set Comment Upload formatter for all converted fields.
+- Improved code style.
 
 The module also provides Comment Upload formatter that emulates D6 attachment representation (images as thumbnails, files as table).
 
