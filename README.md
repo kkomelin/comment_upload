@@ -20,7 +20,7 @@ The module also provides Comment Upload formatter that emulates D6 attachment re
 - Choose a common image style for all Comment Upload images admin/config/media/comment_upload
 - Test your Comment Upload fields
 
-### USE AS A FILE FIELD FORMATTER
+### USE AS A DRUPAL 7 FILE FIELD FORMATTER
 
 - Create a File field that belongs to an entity.
 - Choose Comment Upload formatter in the field display settings.
