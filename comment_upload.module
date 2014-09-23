@@ -81,6 +81,11 @@ function comment_upload_field_formatter_view($entity_type, $entity, $field, $ins
 
     case 'file_comment_upload':
       if (!empty($items)) {
+        if (module_exists('comment_upload')) {
+          // @fixme: find a better way to pass cid to the theme function.
+          $items['cid'] = $entity->cid;
+        }
+
         // Display all values in a single element..
         $element[0] = array(
           '#theme' => 'file_formatter_comment_upload',
@@ -104,6 +109,11 @@ function comment_upload_field_formatter_view($entity_type, $entity, $field, $ins
  */
 function theme_file_formatter_comment_upload($variables) {
 
+  if (module_exists('comment_upload')) {
+    $cid = $variables['items']['cid'];
+    unset($variables['items']['cid']);
+  }
+
   $header = array(t('Attachment'), t('Size'));
   $rows = array();
 
@@ -125,6 +135,16 @@ function theme_file_formatter_comment_upload($variables) {
         'item' => $item,
         'path' => array('path' => $real_uri)
       );
+
+      if (module_exists('comment_upload')) {
+        $image_formatter_options['path']['options'] =
+          array(
+            'attributes' => array(
+              'class' => 'colorbox',
+              'rel' => 'gallery-comment-' . $cid
+            )
+          );
+      }
 
       // Use image style if chosen in the module settings.
       $image_style = variable_get('comment_upload_image_style', COMMENT_UPLOAD_DEFAULT_IMAGE_STYLE);
